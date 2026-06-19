@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 export async function POST(request: Request) {
   try {
-    const { prompt } = await request.json();
+    const { prompt, apiKey, model = "claude-3-haiku-20240307" } = await request.json();
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return NextResponse.json({
@@ -15,8 +15,10 @@ export async function POST(request: Request) {
       });
     }
 
-    // 만약 API 키가 없다면 임시로 모두 false 반환 (에러 방지)
-    if (!process.env.ANTHROPIC_API_KEY) {
+    const effectiveKey = apiKey || process.env.ANTHROPIC_API_KEY;
+
+    // 만약 API 키가 없다면 임시로 모두 false 반환
+    if (!effectiveKey) {
       return NextResponse.json({
         role: false,
         context: false,
@@ -27,7 +29,7 @@ export async function POST(request: Request) {
     }
 
     const anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
+      apiKey: effectiveKey,
     });
 
     const systemPrompt = `당신은 프롬프트 분석기입니다. 사용자의 프롬프트를 분석하여 다음 5가지 요소가 포함되어 있는지 확인하고 오직 JSON 형식으로만 반환하세요.
@@ -48,7 +50,7 @@ export async function POST(request: Request) {
 }`;
 
     const response = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20241022",
+      model: model,
       max_tokens: 300,
       system: systemPrompt,
       messages: [{ role: "user", content: prompt }],

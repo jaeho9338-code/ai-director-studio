@@ -22,8 +22,12 @@ const BADGES = [
 
 export default function LeftPanel({
   onExecute,
+  apiKey,
+  model,
 }: {
   onExecute: (prompt: string) => void;
+  apiKey: string;
+  model: string;
 }) {
   const [prompt, setPrompt] = useState("");
   const [analysis, setAnalysis] = useState<AnalysisResult>({
@@ -60,7 +64,7 @@ export default function LeftPanel({
         const res = await fetch("/api/analyze-prompt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt }),
+          body: JSON.stringify({ prompt, apiKey, model }),
         });
         if (res.ok) {
           const data = await res.json();
@@ -76,7 +80,7 @@ export default function LeftPanel({
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [prompt]);
+  }, [prompt, apiKey]);
 
   const score = Object.values(analysis).filter(Boolean).length * 20;
 
@@ -105,7 +109,7 @@ export default function LeftPanel({
               <div
                 key={badge.key}
                 className={`px-3 py-1 rounded-full text-xs font-bold transition-all duration-300 ${
-                  isActive ? \`\${badge.colorClass} \${badge.textClass} opacity-100\` : "bg-dark text-text-sub opacity-50"
+                  isActive ? `${badge.colorClass} ${badge.textClass} opacity-100` : "bg-dark text-text-sub opacity-50"
                 }`}
               >
                 {badge.label}

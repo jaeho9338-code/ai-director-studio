@@ -1,12 +1,5 @@
 import type { Metadata } from "next";
-import { Noto_Serif_KR } from "next/font/google";
 import "./globals.css";
-
-const notoSerifKr = Noto_Serif_KR({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-  variable: "--font-noto-serif-kr",
-});
 
 export const metadata: Metadata = {
   title: "AI 디렉터 스튜디오",
@@ -20,7 +13,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className={`${notoSerifKr.variable} antialiased`}>
+      <body className="antialiased">
         {children}
       </body>
     </html>
