@@ -29,8 +29,5 @@
 - **액센트**: 와인레드 `#8c2f23`
 - **폰트**: Pretendard (UI), Noto Serif KR (본문)
 
-## 운영자
-재호 / removed@example.com / [redacted]
-
 ## 작업 규칙
 - 단계별 진행, 각 단계 확인 후 다음으로

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이차부등식 시각화 시뮬레이터</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; background-color: #f4f7f6; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 800px; }
+        h1 { text-align: center; color: #2c3e50; font-size: 24px; margin-bottom: 20px; }
+        
+        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .control-group { display: flex; flex-direction: column; }
+        label { font-weight: bold; margin-bottom: 8px; color: #495057; font-size: 14px; }
+        input[type="range"] { width: 100%; cursor: pointer; }
+        select { padding: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 16px; cursor: pointer; }
+        .val-display { color: #0d6efd; font-weight: bold; float: right; }
+
+        .equation-box { background: #e9ecef; padding: 15px; border-radius: 8px; text-align: center; font-size: 22px; margin-bottom: 20px; font-weight: bold; }
+        
+        .chart-container { position: relative; height: 400px; width: 100%; }
+        
+        .result-box { margin-top: 20px; padding: 20px; background: #e8f4f8; border-left: 5px solid #0dcaf0; border-radius: 6px; }
+        .result-title { font-weight: bold; color: #055160; margin-bottom: 10px; font-size: 18px; }
+        .result-text { font-size: 18px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>이차부등식 시뮬레이터</h1>
+    
+    <div class="equation-box" id="equation-display">
+        </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label>이차항 계수 (a): <span class="val-display" id="val-a">1</span></label>
+            <input type="range" id="slider-a" min="-5" max="5" step="1" value="1">
+        </div>
+        <div class="control-group">
+            <label>일차항 계수 (b): <span class="val-display" id="val-b">-2</span></label>
+            <input type="range" id="slider-b" min="-10" max="10" step="1" value="-2">
+        </div>
+        <div class="control-group">
+            <label>상수항 (c): <span class="val-display" id="val-c">-3</span></label>
+            <input type="range" id="slider-c" min="-10" max="10" step="1" value="-3">
+        </div>
+        <div class="control-group">
+            <label>부등호 방향</label>
+            <select id="select-sign">
+                <option value=">">> 0</option>
+                <option value=">=">≥ 0</option>
+                <option value="<">< 0</option>
+                <option value="<=">≤ 0</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="myChart"></canvas>
+    </div>
+
+    <div class="result-box">
+        <div class="result-title">판별식(D) 분석 및 부등식의 해</div>
+        <div id="result-desc" class="result-text">계산 중...</div>
+    </div>
+</div>
+
+<script>
+    const sliderA = document.getElementById('slider-a');
+    const sliderB = document.getElementById('slider-b');
+    const sliderC = document.getElementById('slider-c');
+    const selectSign = document.getElementById('select-sign');
+    const valA = document.getElementById('val-a');
+    const valB = document.getElementById('val-b');
+    const valC = document.getElementById('val-c');
+    const equationDisplay = document.getElementById('equation-display');
+    const resultDesc = document.getElementById('result-desc');
+    let chartInstance = null;
+
+    // a가 0이 되는 것을 방지
+    sliderA.addEventListener('input', function() {
+        if (this.value == 0) this.value = 1;
+    });
+
+    function updateAll() {
+        let a = parseInt(sliderA.value);
+        let b = parseInt(sliderB.value);
+        let c = parseInt(sliderC.value);
+        let sign = selectSign.value;
+
+        valA.textContent = a;
+        valB.textContent = b;
+        valC.textContent = c;
+
+        updateEquation(a, b, c, sign);
+        drawChartAndCalculate(a, b, c, sign);
+    }
+
+    function updateEquation(a, b, c, sign) {
+        let eq = `y = ${a === 1 ? '' : a === -1 ? '-' : a}x^2 `;
+        if (b > 0) eq += `+ ${b === 1 ? '' : b}x `;
+        else if (b < 0) eq += `- ${Math.abs(b) === 1 ? '' : Math.abs(b)}x `;
+        
+        if (c > 0) eq += `+ ${c} `;
+        else if (c < 0) eq += `- ${Math.abs(c)} `;
+        
+        let latexSign = sign === ">=" ? "\\ge" : sign === "<=" ? "\\le" : sign;
+        equationDisplay.innerHTML = `\\[ ${eq} ${latexSign} 0 \\]`;
+        MathJax.typesetPromise([equationDisplay]);
+    }
+
+    function drawChartAndCalculate(a, b, c, sign) {
+        const d = b * b - 4 * a * c;
+        let roots = [];
+        if (d > 0) {
+            roots.push((-b - Math.sqrt(d)) / (2 * a));
+            roots.push((-b + Math.sqrt(d)) / (2 * a));
+            roots.sort((x, y) => x - y); // 오름차순 정렬
+        } else if (d === 0) {
+            roots.push(-b / (2 * a));
+        }
+
+        // 해설 로직 생성
+        let solutionText = `판별식 \\( D = b^2 - 4ac = ${d} \\)<br><br>`;
+        if (a > 0) {
+            if (d > 0) {
+                let r1 = roots[0].toFixed(2);
+                let r2 = roots[1].toFixed(2);
+                solutionText += `그래프가 x축과 두 점(\\( x \\approx ${r1}, ${r2} \\))에서 만납니다.<br>`;
+                if(sign === ">") solutionText += `<b>해:</b> \\( x < ${r1} \\) 또는 \\( x > ${r2} \\)`;
+                if(sign === ">=") solutionText += `<b>해:</b> \\( x \\le ${r1} \\) 또는 \\( x \\ge ${r2} \\)`;
+                if(sign === "<") solutionText += `<b>해:</b> \\( ${r1} < x < ${r2} \\)`;
+                if(sign === "<=") solutionText += `<b>해:</b> \\( ${r1} \\le x \\le ${r2} \\)`;
+            } else if (d === 0) {
+                let r = roots[0].toFixed(2);
+                solutionText += `그래프가 x축과 한 점(\\( x = ${r} \\))에서 접합니다.<br>`;
+                if(sign === ">") solutionText += `<b>해:</b> \\( x \\neq ${r} \\) 인 모든 실수`;
+                if(sign === ">=") solutionText += `<b>해:</b> 모든 실수`;
+                if(sign === "<") solutionText += `<b>해:</b> 해가 없다.`;
+                if(sign === "<=") solutionText += `<b>해:</b> \\( x = ${r} \\)`;
+            } else {
+                solutionText += `그래프가 x축과 만나지 않고 붕 떠있습니다.<br>`;
+                if(sign === ">" || sign === ">=") solutionText += `<b>해:</b> 모든 실수`;
+                if(sign === "<" || sign === "<=") solutionText += `<b>해:</b> 해가 없다.`;
+            }
+        } else {
+            // 위로 볼록일 때의 처리 (중략: 보통 학생들은 양변에 -1을 곱해서 풀도록 지도하므로 양수 a 기준 원리 설명에 집중)
+            solutionText += `최고차항이 음수이므로, 양변에 -1을 곱하여 부등호 방향을 바꾼 뒤 생각하는 것이 좋습니다.`;
+        }
+
+        resultDesc.innerHTML = solutionText;
+        MathJax.typesetPromise([resultDesc]);
+
+        // 차트 그리기 데이터 생성
+        let dataPoints = [];
+        let highlightedData = [];
+        for (let x = -10; x <= 10; x += 0.2) {
+            let y = a * x * x + b * x + c;
+            dataPoints.push({x: x, y: y});
+            
+            // 부등식 만족하는 구간 하이라이트
+            let isValid = false;
+            if(sign === ">" && y > 0) isValid = true;
+            if(sign === ">=" && y >= 0) isValid = true;
+            if(sign === "<" && y < 0) isValid = true;
+            if(sign === "<=" && y <= 0) isValid = true;
+            
+            if(isValid) highlightedData.push({x: x, y: y});
+            else highlightedData.push({x: x, y: null});
+        }
+
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+
+        const ctx = document.getElementById('myChart').getContext('2d');
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [
+                    {
+                        label: '만족하는 구간 (Highlight)',
+                        data: highlightedData,
+                        borderColor: 'red',
+                        borderWidth: 5,
+                        fill: false,
+                        pointRadius: 0,
+                        tension: 0.4
+                    },
+                    {
+                        label: `y = ${a}x² + ${b}x + ${c}`,
+                        data: dataPoints,
+                        borderColor: 'rgba(54, 162, 235, 0.5)',
+                        borderWidth: 2,
+                        fill: false,
+                        pointRadius: 0,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { type: 'linear', position: 'bottom', min: -10, max: 10, grid: { color: (ctx) => ctx.tick.value === 0 ? 'black' : '#e9ecef', lineWidth: (ctx) => ctx.tick.value === 0 ? 2 : 1 } },
+                    y: { min: -20, max: 20, grid: { color: (ctx) => ctx.tick.value === 0 ? 'black' : '#e9ecef', lineWidth: (ctx) => ctx.tick.value === 0 ? 2 : 1 } }
+                },
+                animation: { duration: 0 } // 드래그 시 버벅임 방지
+            }
+        });
+    }
+
+    // 이벤트 리스너 등록
+    sliderA.addEventListener('input', updateAll);
+    sliderB.addEventListener('input', updateAll);
+    sliderC.addEventListener('input', updateAll);
+    selectSign.addEventListener('change', updateAll);
+
+    // 초기 실행
+    updateAll();
+</script>
+
+</body>
+</html>
